@@ -4,9 +4,11 @@ GMSİ Vergi Hesaplayıcı — Flask Web Uygulaması
 """
 
 from flask import Flask, render_template, request, jsonify, send_file
-import io, json
+import io, importlib, json
 
+import params as _params_module
 from params import PARAMS
+from utils.gib_guncelle import kontrol_et as _gib_kontrol
 from utils.hesapla import (
     gmsi_hesapla, HesaplamaGirdisi,
     Mulk, Isveren, GercekGider, DigerGelirler, format_tl
@@ -171,10 +173,62 @@ def api_export_pdf():
 @app.route("/api/params/<int:year>")
 def api_params(year: int):
     """Belirli bir yılın parametrelerini döner."""
+    _reload_params()
     if year not in PARAMS:
         return jsonify({"ok": False, "error": "Yıl bulunamadı"}), 404
     return jsonify({"ok": True, "data": PARAMS[year]})
 
 
+# ── Parametre reload yardımcısı ───────────────────────────────────────────
+def _reload_params():
+    """params.py değiştiyse modülü canlı olarak yeniden yükler."""
+    global PARAMS
+    importlib.reload(_params_module)
+    PARAMS = _params_module.PARAMS
+
+
+# ── GİB Güncelleme Endpoint'leri ─────────────────────────────────────────
+@app.route("/api/admin/gib-guncelle", methods=["POST"])
+def api_gib_guncelle():
+    """
+    GİB'den yeni yıl parametrelerini çeker ve params.py'yi günceller.
+    POST body (opsiyonel): {"yil": 2027, "force": false}
+    """
+    try:
+        body      = request.get_json(silent=True) or {}
+        hedef_yil = body.get("yil")  # None → otomatik
+        force     = bool(body.get("force", False))
+
+        from utils.gib_guncelle import guncelle
+        yeni = guncelle(hedef_yil=hedef_yil, force=force)
+        _reload_params()
+
+        if yeni:
+            return jsonify({"ok": True, "guncellendi": True,  "yeni_params": yeni})
+        else:
+            return jsonify({"ok": True, "guncellendi": False, "mesaj": "Güncelleme gerekmedi."})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/admin/gib-kontrol")
+def api_gib_kontrol():
+    """Yeni yıl parametresi gerekli mi kontrol eder."""
+    try:
+        durum = _gib_kontrol()
+        _reload_params()
+        durum["mevcut_yillar"] = sorted(PARAMS.keys())
+        return jsonify({"ok": True, "data": durum})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 if __name__ == "__main__":
+    # Uygulama başlarken yeni yıl kontrolü yap
+    try:
+        durum = _gib_kontrol()
+        if durum.get("guncelleme_gerekli") and durum.get("yeni_params"):
+            _reload_params()
+    except Exception:
+        pass
     app.run(debug=True, port=5000)

@@ -3,8 +3,11 @@ GMSİ Vergi Hesaplayıcı — Streamlit Web Uygulaması
 Streamlit Cloud'da çalıştır → https://share.streamlit.io
 """
 
+import importlib
 import streamlit as st
 
+from utils.gib_guncelle import kontrol_et as _gib_kontrol
+import params as _params_module
 from params import PARAMS
 from utils.hesapla import (
     gmsi_hesapla, HesaplamaGirdisi,
@@ -12,6 +15,13 @@ from utils.hesapla import (
 )
 from utils.export_excel import export_excel
 from utils.export_pdf import export_pdf
+
+
+def _params_yukle() -> dict:
+    """params.py'yi yeniden yükleyip PARAMS sözlüğünü döner."""
+    importlib.reload(_params_module)
+    return _params_module.PARAMS
+
 
 # ── Sayfa yapılandırması ──────────────────────────────────────────────────
 st.set_page_config(
@@ -34,6 +44,33 @@ if "n_mulk" not in st.session_state:
     st.session_state.n_mulk = 1
 if "n_isveren" not in st.session_state:
     st.session_state.n_isveren = 1
+if "_gib_kontrol_yapildi" not in st.session_state:
+    st.session_state._gib_kontrol_yapildi = False
+
+
+# ── Yeni Yıl Otomatik Kontrol ─────────────────────────────────────────────
+# Her oturum açılışında bir kez çalışır; yeni yıl gerekirse GİB'den çeker.
+if not st.session_state._gib_kontrol_yapildi:
+    st.session_state._gib_kontrol_yapildi = True
+    try:
+        with st.spinner("🔄 Vergi parametreleri kontrol ediliyor…"):
+            durum = _gib_kontrol()
+        if durum.get("guncelleme_gerekli") and durum.get("yeni_params"):
+            yeni = durum["yeni_params"]
+            kaynak = yeni.get("_kaynak", "?")
+            st.toast(
+                f"✅ {durum['hedef_yil']} yılı parametreleri güncellendi "
+                f"(kaynak: {kaynak})",
+                icon="🏛️",
+            )
+            # Modülü sıcak yeniden yükle
+            _params_yukle()
+    except Exception as _e:
+        st.toast(f"⚠️ GİB kontrol hatası: {_e}", icon="⚠️")
+
+
+# ── Güncel PARAMS ─────────────────────────────────────────────────────────
+PARAMS = _params_yukle()
 
 
 # ── Yardımcı ─────────────────────────────────────────────────────────────
