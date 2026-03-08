@@ -1,19 +1,29 @@
-# GMSİ Vergi Hesaplayıcı — Python/Flask
+# 🏠 Kira Vergisi Hesaplayıcı
 
-**Türkiye'de Gayrimenkul Sermaye İradı (Kira Geliri) Vergi Hesaplama Web Uygulaması**  
+**Türkiye'de Gayrimenkul Sermaye İradı (GMSİ) Kira Geliri Vergi Hesaplama Web Uygulaması**  
 GVK Md. 21, 70, 74, 86, 94 | GİB Hazır Beyan Uyumlu | 2025–2026
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://kira-vergisi-hesaplayici.streamlit.app)
+
+> Türkiye'de kira geliri olan herkese yönelik, 2025-2026 GİB vergi parametrelerine göre GMSİ beyannamesini adım adım hesaplayan **ücretsiz web uygulaması**.
 
 ---
 
 ## 🚀 Kurulum ve Çalıştırma
 
+### Streamlit (Önerilen)
 ```bash
-# 1. Bağımlılıkları yükle
+git clone https://github.com/KULLANICI_ADIN/kira-vergisi-hesaplayici.git
+cd kira-vergisi-hesaplayici
 pip install -r requirements.txt
+streamlit run streamlit_app.py
+# → http://localhost:8501
+```
 
-# 2. Uygulamayı başlat
+### Flask (Lokal / API)
+```bash
+pip install -r requirements.txt
 python app.py
-
 # → http://localhost:5000
 ```
 
@@ -22,7 +32,8 @@ python app.py
 ## 📁 Proje Yapısı
 
 ```
-gmsi-python/
+kira-vergisi-hesaplayici/
+├── streamlit_app.py         # Streamlit Cloud uygulaması (deploy için)
 ├── app.py                   # Flask uygulaması — tüm route'lar
 ├── params.py                # GVK vergi parametreleri (2025, 2026)
 ├── requirements.txt
