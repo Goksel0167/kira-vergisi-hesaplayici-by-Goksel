@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GMSİ Vergi Hesaplayıcı</title>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="h-inner">
+    <div class="logo">
+      <span class="logo-icon">⚖</span>
+      <div>
+        <div class="logo-title">GMSİ Hesaplayıcı</div>
+        <div class="logo-sub">Gayrimenkul Sermaye İradı · Ücret · Kira Vergisi</div>
+      </div>
+    </div>
+    <div class="badge"><span class="dot"></span> GİB 2025/2026 · Mart 2026</div>
+  </div>
+</header>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar" id="progressBar">
+  <div class="p-item" data-step="1"><div class="p-dot" id="pd1">1</div><span class="p-lbl">Yıl</span></div>
+  <div class="p-item" data-step="2"><div class="p-dot" id="pd2">2</div><span class="p-lbl">Mülkler</span></div>
+  <div class="p-item" data-step="3"><div class="p-dot" id="pd3">3</div><span class="p-lbl">Giderler</span></div>
+  <div class="p-item" data-step="4"><div class="p-dot" id="pd4">4</div><span class="p-lbl">Gelirler</span></div>
+  <div class="p-item" data-step="5"><div class="p-dot" id="pd5">5</div><span class="p-lbl">Özet</span></div>
+</div>
+
+<main id="main">
+
+  <!-- ── ADIM 0: GİRİŞ ─────────────────────────────────────────── -->
+  <div class="step active" id="step0">
+    <div class="card fade-in" style="text-align:center">
+      <div style="font-size:52px;margin-bottom:16px">🏠</div>
+      <h1 class="hero-title">Kira Geliri Vergi Hesaplayıcı</h1>
+      <p class="hero-desc">Konut, işyeri ve ücret gelirlerinizi güncel GVK mevzuatı ile hesaplayın.<br>Sonuçları PDF ve Excel olarak indirin.</p>
+      <div class="feat-grid">
+        <div class="feat-card"><span>📋</span><strong>Hazır Beyan Uyumlu</strong><small>GİB akışına hazır özet</small></div>
+        <div class="feat-card"><span>⚖</span><strong>İktisap %5 Sınırlı</strong><small>Kira hasılatını aşamaz</small></div>
+        <div class="feat-card"><span>👔</span><strong>Ücret Beyanı</strong><small>12 ay brüt + işveren bazlı</small></div>
+        <div class="feat-card"><span>📥</span><strong>PDF &amp; Excel</strong><small>Tek tıkla indir</small></div>
+      </div>
+      <div class="warn-box">⚠️ Bu araç <strong>bilgilendirme amaçlıdır</strong>. Kesin yükümlülük için YMM'ye danışınız.</div>
+      <button class="btn-primary" onclick="goStep(1)">Hesaplamaya Başla →</button>
+    </div>
+  </div>
+
+  <!-- ── ADIM 1: YIL ────────────────────────────────────────────── -->
+  <div class="step" id="step1">
+    <div class="card fade-in">
+      <h2 class="sec-title">Beyan Yılını Seçin</h2>
+      <p class="sec-desc">Hangi takvim yılına ait geliri beyan edeceksiniz?</p>
+      <div class="year-grid">
+        {% for y, p in params.items() %}
+        <button class="year-card {% if loop.first %}active{% endif %}" onclick="selectYear({{ y }}, this)">
+          <div class="year-num">{{ y }}</div>
+          <div class="year-sub">{{ 'Beyan: 1–31 Mart 2026' if y == 2025 else 'Beyan: 1–31 Mart 2027' }}</div>
+          <div class="year-params">
+            <span>Mesken İstisnası: <b>₺{{ '{:,.0f}'.format(p.mesken_istisna).replace(',', '.') }}</b></span>
+            <span>İşyeri Eşiği: <b>₺{{ '{:,.0f}'.format(p.isyeri_beyan_esigi_stopajli).replace(',', '.') }}</b></span>
+            <span>Ücret Eşiği: <b>₺{{ '{:,.0f}'.format(p.ucret_beyan_esigi).replace(',', '.') }}</b></span>
+          </div>
+          <div class="year-chk" style="display:none">✓ Seçildi</div>
+        </button>
+        {% endfor %}
+      </div>
+      <div class="nav-row">
+        <button class="btn-sec" onclick="goStep(0)">← Geri</button>
+        <button class="btn-primary" onclick="goStep(2)">İleri →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADIM 2: MÜLKLER ────────────────────────────────────────── -->
+  <div class="step" id="step2">
+    <div class="card fade-in">
+      <h2 class="sec-title">Mülk ve Kira Bilgileri</h2>
+      <p class="sec-desc">Tahsil esasına göre yıl içinde tahsil ettiğiniz brüt kira gelirlerini giriniz.</p>
+      <div class="info-box">🏦 <strong>Tevsik Zorunluluğu:</strong> 500 TL üzerindeki tahsilatlar banka veya PTT üzerinden yapılmalıdır.</div>
+      <div id="mulklerContainer"></div>
+      <button class="btn-add" onclick="addMulk()">+ Mülk Ekle</button>
+      <div class="nav-row">
+        <button class="btn-sec" onclick="goStep(1)">← Geri</button>
+        <button class="btn-primary" onclick="goStep(3)">İleri →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADIM 3: GİDERLER ───────────────────────────────────────── -->
+  <div class="step" id="step3">
+    <div class="card fade-in">
+      <h2 class="sec-title">Gider Yöntemi</h2>
+      <p class="sec-desc">Seçiminiz 2 yıl değiştirilemez (GVK Md.74).</p>
+      <div class="method-grid">
+        <button class="method-card active" id="mc-goturu" onclick="selectGider('goturu')">
+          <div style="font-size:28px;margin-bottom:8px">📊</div>
+          <div class="method-title">Götürü Gider</div>
+          <div class="method-desc">Kira gelirinin <strong>%15'i</strong> otomatik gider. Belge gerekmez.</div>
+          <div class="method-chk">✓ Seçildi</div>
+        </button>
+        <button class="method-card" id="mc-gercek" onclick="selectGider('gercek')">
+          <div style="font-size:28px;margin-bottom:8px">🧾</div>
+          <div class="method-title">Gerçek Gider</div>
+          <div class="method-desc">GVK Md.74 belgeli giderler. Yüksek gideriniz varsa avantajlı.</div>
+          <div class="method-chk" style="display:none">✓ Seçildi</div>
+        </button>
+      </div>
+
+      <div id="gercekPanel" style="display:none">
+        <div class="sub-card">
+          <h3 class="sub-title">Gerçek Gider Kalemleri (GVK Md. 74)</h3>
+          <div class="warn-box" style="margin-bottom:12px">⚠️ <strong>2025:</strong> Konut için kredi/ipotek faizi indirilemez (7566 s.K.).</div>
+          <div class="info-box" style="margin-bottom:16px">📌 <strong>İktisap %5:</strong> Alış bedelinin %5'i gider — <strong>o konutun yıllık kira hasılatını aşamaz</strong>, zarar oluşturulamaz.</div>
+          <div class="form-grid">
+            <div class="fg"><label>Aidat, Aydınlatma, Isıtma, Su (TL)</label><input type="number" id="g-aidat" placeholder="0" min="0"/></div>
+            <div class="fg"><label>Sigorta Giderleri (TL)</label><input type="number" id="g-sigorta" placeholder="0" min="0"/></div>
+            <div class="fg"><label>Vergi, Harç, Şerefiyeler (TL)</label><input type="number" id="g-vergiler" placeholder="0" min="0"/></div>
+            <div class="fg"><label>Amortisman (TL) — tipik %2/yıl</label><input type="number" id="g-amortisman" placeholder="0" min="0"/></div>
+            <div class="fg"><label>Diğer GVK Md.74 Giderleri (TL)</label><input type="number" id="g-diger" placeholder="0" min="0"/></div>
+            <div class="fg">
+              <label style="color:#c0392b">⛔ Konut Kredi Faizi — 2025'te İndirilemez</label>
+              <input type="number" id="g-kredi" placeholder="0" min="0" style="border-color:#e74c3c;background:#fff5f5"/>
+              <small style="color:#c0392b">Girseniz bile hesaplamaya dahil edilmez.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-row">
+        <button class="btn-sec" onclick="goStep(2)">← Geri</button>
+        <button class="btn-primary" onclick="goStep(4)">İleri →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADIM 4: ÜCRET & DİĞER ─────────────────────────────────── -->
+  <div class="step" id="step4">
+    <div class="card fade-in">
+      <h2 class="sec-title">Ücret ve Diğer Gelirler</h2>
+
+      <div class="sec-box">
+        <div class="ucret-header">
+          <div style="display:flex;align-items:flex-start;gap:14px;flex:1">
+            <span style="font-size:28px;margin-top:2px">👔</span>
+            <div>
+              <div class="ucret-title">Ücret Geliri (Çalışanlar)</div>
+              <div class="ucret-sub">İşveren tarafından stopaj kesilen ücretler</div>
+            </div>
+          </div>
+          <label class="toggle-label">
+            <input type="checkbox" id="ucretVarCb" onchange="toggleUcret(this.checked)"/>
+            <span class="toggle-txt" id="ucretTxt">Yok</span>
+          </label>
+        </div>
+
+        <div id="ucretPanel" style="display:none;margin-top:16px">
+          <div class="info-box" id="ucretEsikInfo"></div>
+          <div id="isverenlerContainer"></div>
+          <button class="btn-add" onclick="addIsveren()">+ İşveren Ekle</button>
+        </div>
+      </div>
+
+      <div class="sec-box" style="margin-top:16px">
+        <div class="sub-title" style="margin-bottom:12px">Diğer Gelirler</div>
+        <div class="form-grid">
+          <div class="fg"><label>Menkul Sermaye İradı (TL)</label><input type="number" id="d-msi" placeholder="0" min="0"/></div>
+          <div class="fg"><label>Diğer Kazanç ve İratlar (TL)</label><input type="number" id="d-dki" placeholder="0" min="0"/></div>
+        </div>
+        <label class="check-label" style="margin-top:12px">
+          <input type="checkbox" id="faaliyetCb"/>
+          Ticari/zirai/mesleki kazancım var → Mesken istisnasından yararlanamam
+        </label>
+      </div>
+
+      <div class="nav-row">
+        <button class="btn-sec" onclick="goStep(3)">← Geri</button>
+        <button class="btn-primary" onclick="hesaplaVeGoster()">Hesapla →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADIM 5: ÖZET ───────────────────────────────────────────── -->
+  <div class="step" id="step5">
+    <div id="warnsContainer"></div>
+
+    <!-- Export Butonları -->
+    <div class="card export-bar fade-in">
+      <div class="export-title">📥 Sonuçları İndir</div>
+      <div class="export-btns">
+        <button class="btn-excel" id="btnExcel" onclick="exportFile('excel')">📊 Excel (.xlsx) İndir</button>
+        <button class="btn-pdf"   id="btnPdf"   onclick="exportFile('pdf')">📄 PDF İndir</button>
+      </div>
+      <div class="export-note">Excel: 3 sekme (Özet, GVK Tarifesi, Ücret Detay) · PDF: A4, tam sayfalı rapor</div>
+    </div>
+
+    <!-- Ana Sonuç -->
+    <div class="result-hero fade-in" id="resultHero"></div>
+
+    <!-- GMSİ Tablo -->
+    <div class="card fade-in" id="gmsiCard"></div>
+
+    <!-- Ücret Tablo -->
+    <div class="card fade-in" id="ucretCard" style="display:none"></div>
+
+    <!-- Toplam Vergi -->
+    <div class="card fade-in" id="vergCard"></div>
+
+    <!-- Takvim -->
+    <div class="card fade-in" id="takvimCard"></div>
+
+    <!-- Alt Export -->
+    <div class="card export-bar fade-in">
+      <div class="export-btns">
+        <button class="btn-excel" onclick="exportFile('excel')">📊 Excel İndir</button>
+        <button class="btn-pdf"   onclick="exportFile('pdf')">📄 PDF İndir</button>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn-sec" onclick="goStep(4)">← Geri</button>
+      <button class="btn-primary" onclick="resetAll()">🔄 Yeni Hesaplama</button>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Bilgilendirme amaçlıdır · YMM'ye danışınız · GİB 2025/2026 Parametreleri · Python/Flask v1.0
+</footer>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
